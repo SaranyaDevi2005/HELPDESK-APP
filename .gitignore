@@ -1,0 +1,31 @@
+# Environment
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+coverage.xml
+.coverage
+
+# Node
+node_modules/
+build/
+dist/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/kubeconfig.yaml
+terraform/.terraform.lock.hcl
+
+# Docker
+*.tar
+
+# IDE
+.vscode/
+.idea/

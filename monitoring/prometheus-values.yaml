@@ -1,0 +1,38 @@
+# Install: helm install monitoring prometheus-community/kube-prometheus-stack \
+#          -n monitoring --create-namespace -f prometheus-values.yaml
+
+grafana:
+  adminPassword: "helpdesk@123"
+  service:
+    type: LoadBalancer
+  persistence:
+    enabled: true
+    size: 2Gi
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: default
+        folder: Helpdesk
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 5Gi
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 1Gi

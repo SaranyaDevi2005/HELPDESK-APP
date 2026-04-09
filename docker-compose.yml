@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      retries: 5
+
+  auth_service:
+    build:
+      context: ./backend/services/auth_service
+      target: production
+    ports:
+      - "8001:8001"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - JWT_SECRET=${JWT_SECRET:-helpdesk-secret-dev}
+
+  ticket_service:
+    build:
+      context: ./backend/services/ticket_service
+      target: production
+    ports:
+      - "8002:8002"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - JWT_SECRET=${JWT_SECRET:-helpdesk-secret-dev}
+
+  comment_service:
+    build:
+      context: ./backend/services/comment_service
+      target: production
+    ports:
+      - "8003:8003"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - JWT_SECRET=${JWT_SECRET:-helpdesk-secret-dev}
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth_service
+      - ticket_service
+      - comment_service
+    environment:
+      - REACT_APP_AUTH_API=http://localhost:8001
+      - REACT_APP_TICKET_API=http://localhost:8002
+      - REACT_APP_COMMENT_API=http://localhost:8003
+
+volumes:
+  mongo_data:

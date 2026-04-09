@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: helpdesk
+spec:
+  selector:
+    app: mongo
+  ports:
+  - port: 27017
+    targetPort: 27017
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: helpdesk
+spec:
+  selector:
+    app: auth-service
+  ports:
+  - port: 8001
+    targetPort: 8001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-service
+  namespace: helpdesk
+spec:
+  selector:
+    app: ticket-service
+  ports:
+  - port: 8002
+    targetPort: 8002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: comment-service
+  namespace: helpdesk
+spec:
+  selector:
+    app: comment-service
+  ports:
+  - port: 8003
+    targetPort: 8003
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: helpdesk
+spec:
+  selector:
+    app: frontend
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000

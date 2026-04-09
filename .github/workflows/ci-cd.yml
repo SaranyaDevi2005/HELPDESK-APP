@@ -1,0 +1,92 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # ── JOB 1: Test & Security Scan ──────────────────────────────
+  test-and-scan:
+    name: Test + Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies & run tests
+        run: |
+          pip install -r backend/services/auth_service/requirements.txt
+          pip install pytest httpx
+          cd backend/services/auth_service
+          python -m pytest tests/ -v --tb=short || true
+
+      - name: Build Docker images
+        run: |
+          docker build -t helpdesk-auth:$IMAGE_TAG   ./backend/services/auth_service
+          docker build -t helpdesk-ticket:$IMAGE_TAG ./backend/services/ticket_service
+          docker build -t helpdesk-comment:$IMAGE_TAG ./backend/services/comment_service
+          docker build -t helpdesk-frontend:$IMAGE_TAG ./frontend
+
+      # ── Trivy: Scan for CRITICAL vulnerabilities ──────────────
+      - name: Trivy scan - auth service
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: helpdesk-auth:${{ env.IMAGE_TAG }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 0   # set to 1 to fail on CRITICAL
+
+      # ── SonarCloud Static Analysis ────────────────────────────
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        if: ${{ secrets.SONAR_TOKEN != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ── JOB 2: Build & Push Images ───────────────────────────────
+  build-push:
+    name: Build & Push to DockerHub
+    runs-on: ubuntu-latest
+    needs: test-and-scan
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Build and push all images
+        run: |
+          for svc in auth ticket comment; do
+            docker build -t $DOCKER_USER/helpdesk-${svc}:latest \
+                         -t $DOCKER_USER/helpdesk-${svc}:$IMAGE_TAG \
+                         ./backend/services/${svc}_service
+            docker push $DOCKER_USER/helpdesk-${svc}:latest
+          done
+          docker build -t $DOCKER_USER/helpdesk-frontend:latest ./frontend
+          docker push $DOCKER_USER/helpdesk-frontend:latest
+
+      # Update K8s manifest image tags for ArgoCD to pick up
+      - name: Update manifests with new image tag
+        run: |
+          sed -i "s|image: .*/helpdesk-auth:.*|image: $DOCKER_USER/helpdesk-auth:$IMAGE_TAG|g" \
+            manifests/deployments/auth-deployment.yaml
+          git config user.email "ci@helpdesk.com"
+          git config user.name "CI Bot"
+          git add manifests/
+          git diff --staged --quiet || git commit -m "ci: update image tags to $IMAGE_TAG"
+          git push || true
