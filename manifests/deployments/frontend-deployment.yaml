@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: yourdockerhub/helpdesk-frontend:latest
+        image: frontend:latest
         ports:
         - containerPort: 3000
         env:

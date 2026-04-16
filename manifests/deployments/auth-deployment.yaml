@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: auth
-        image: yourdockerhub/helpdesk-auth:latest
+        image: auth-service:latest
         ports:
         - containerPort: 8001
         env:

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: ticket
-        image: yourdockerhub/helpdesk-ticket:latest
+        image: ticket-service:latest
         ports:
         - containerPort: 8002
         env:
