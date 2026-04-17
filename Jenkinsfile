@@ -69,14 +69,12 @@ pipeline {
             }
         }
         stage('Push to DockerHub') {
-            when { branch 'main' }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'docker-password',
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-
                     bat '''
                         echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
 
@@ -97,21 +95,25 @@ pipeline {
         }
 
         stage('Update Manifests') {
-            when { branch 'main' }
             steps {
-                bat '''
-                    powershell -Command "(Get-Content manifests/deployments/auth-deployment.yaml) -replace 'image:.*helpdesk-auth:.*','image: %DOCKER_USER%/helpdesk-auth:%IMAGE_TAG%' | Set-Content manifests/deployments/auth-deployment.yaml"
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-password',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    bat '''
+                        powershell -Command "(Get-Content manifests/deployments/auth-deployment.yaml) -replace 'image:.*helpdesk-auth:.*','image: %DOCKER_USER%/helpdesk-auth:%IMAGE_TAG%' | Set-Content manifests/deployments/auth-deployment.yaml"
 
-                    git config user.email "jenkins@helpdesk.com"
-                    git config user.name "Jenkins CI"
+                        git config user.email "jenkins@helpdesk.com"
+                        git config user.name "Jenkins CI"
 
-                    git add manifests/
-                    git commit -m "ci: update image tag %IMAGE_TAG%" || exit 0
-                    git push origin main || exit 0
-                '''
+                        git add manifests/
+                        git commit -m "ci: update image tag %IMAGE_TAG%" || exit 0
+                        git push origin main || exit 0
+                    '''
+                }
             }
         }
-    }
 
     post {
         success {
