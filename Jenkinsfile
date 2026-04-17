@@ -59,7 +59,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     bat """
-                        Sonar-Scanner\\bin\\sonar-scanner.bat ^
+                        C:\\sonar-scanner\\bin\\sonar-scanner.bat ^
                         -Dsonar.projectKey=helpdesk ^
                         -Dsonar.sources=backend,frontend ^
                         -Dsonar.host.url=http://localhost:9000 ^
