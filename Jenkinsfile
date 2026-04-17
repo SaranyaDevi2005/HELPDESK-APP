@@ -25,35 +25,29 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                sh '''
-                    docker build -t helpdesk-auth:${IMAGE_TAG}    ./backend/services/auth_service
-                    docker build -t helpdesk-ticket:${IMAGE_TAG}  ./backend/services/ticket_service
-                    docker build -t helpdesk-comment:${IMAGE_TAG} ./backend/services/comment_service
-                    docker build -t helpdesk-frontend:${IMAGE_TAG} ./frontend
+                bat '''
+                    docker build -t helpdesk-auth:%IMAGE_TAG%    ./backend/services/auth_service
+                    docker build -t helpdesk-ticket:%IMAGE_TAG%  ./backend/services/ticket_service
+                    docker build -t helpdesk-comment:%IMAGE_TAG% ./backend/services/comment_service
+                    docker build -t helpdesk-frontend:%IMAGE_TAG% ./frontend
                 '''
             }
         }
 
         stage('Trivy Security Scan') {
             steps {
-                sh '''
-                    which trivy || (curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin)
-
-                    trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-auth:${IMAGE_TAG}
-                    trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-frontend:${IMAGE_TAG}
+                bat '''
+                    trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-auth:%IMAGE_TAG%
+                    trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-frontend:%IMAGE_TAG%
                 '''
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        sonar-scanner \
-                        -Dsonar.projectKey=helpdesk \
-                        -Dsonar.sources=backend,frontend
-                    '''
-                }
+                bat '''
+                    sonar-scanner -Dsonar.projectKey=helpdesk -Dsonar.sources=backend,frontend
+                '''
             }
         }
 
@@ -66,16 +60,20 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
 
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    bat '''
+                        echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
 
-                        for svc in auth ticket comment; do
-                            docker tag helpdesk-${svc}:${IMAGE_TAG} ${DOCKER_USER}/helpdesk-${svc}:latest
-                            docker push ${DOCKER_USER}/helpdesk-${svc}:latest
-                        done
+                        docker tag helpdesk-auth:%IMAGE_TAG% %DOCKER_USER%/helpdesk-auth:latest
+                        docker push %DOCKER_USER%/helpdesk-auth:latest
 
-                        docker tag helpdesk-frontend:${IMAGE_TAG} ${DOCKER_USER}/helpdesk-frontend:latest
-                        docker push ${DOCKER_USER}/helpdesk-frontend:latest
+                        docker tag helpdesk-ticket:%IMAGE_TAG% %DOCKER_USER%/helpdesk-ticket:latest
+                        docker push %DOCKER_USER%/helpdesk-ticket:latest
+
+                        docker tag helpdesk-comment:%IMAGE_TAG% %DOCKER_USER%/helpdesk-comment:latest
+                        docker push %DOCKER_USER%/helpdesk-comment:latest
+
+                        docker tag helpdesk-frontend:%IMAGE_TAG% %DOCKER_USER%/helpdesk-frontend:latest
+                        docker push %DOCKER_USER%/helpdesk-frontend:latest
                     '''
                 }
             }
@@ -84,15 +82,15 @@ pipeline {
         stage('Update Manifests') {
             when { branch 'main' }
             steps {
-                sh '''
-                    sed -i "s|image:.*helpdesk-auth:.*|image: ${DOCKER_USER}/helpdesk-auth:${IMAGE_TAG}|" manifests/deployments/auth-deployment.yaml
+                bat '''
+                    powershell -Command "(Get-Content manifests/deployments/auth-deployment.yaml) -replace 'image:.*helpdesk-auth:.*','image: %DOCKER_USER%/helpdesk-auth:%IMAGE_TAG%' | Set-Content manifests/deployments/auth-deployment.yaml"
 
                     git config user.email "jenkins@helpdesk.com"
                     git config user.name "Jenkins CI"
 
                     git add manifests/
-                    git diff --staged --quiet || git commit -m "ci: image tag ${IMAGE_TAG}"
-                    git push origin main || true
+                    git commit -m "ci: update image tag %IMAGE_TAG%" || exit 0
+                    git push origin main || exit 0
                 '''
             }
         }
