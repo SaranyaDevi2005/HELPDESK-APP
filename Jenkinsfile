@@ -42,15 +42,12 @@ pipeline {
                     where trivy >nul 2>nul
                     if %errorlevel% neq 0 (
                         echo Installing Trivy...
-
                         powershell -Command "Invoke-WebRequest -Uri https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.58.0_Windows-64bit.zip -OutFile trivy.zip"
-                        powershell -Command "Expand-Archive trivy.zip -DestinationPath C:\\trivy"
-
-                        set PATH=C:\\trivy;%PATH%
+                        powershell -Command "Expand-Archive trivy.zip -DestinationPath C:\\trivy -Force"
                     )
 
-                    trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-auth:%IMAGE_TAG%
-                    trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-frontend:%IMAGE_TAG%
+                    C:\\trivy\\trivy.exe image --severity HIGH,CRITICAL --exit-code 0 helpdesk-auth:%IMAGE_TAG%
+                    C:\\trivy\\trivy.exe image --severity HIGH,CRITICAL --exit-code 0 helpdesk-frontend:%IMAGE_TAG%
                 '''
             }
         }
@@ -68,6 +65,7 @@ pipeline {
                 }
             }
         }
+
         stage('Push to DockerHub') {
             steps {
                 withCredentials([usernamePassword(
@@ -115,6 +113,8 @@ pipeline {
             }
         }
 
+    }  // ← closes stages {}
+
     post {
         success {
             echo "✅ Pipeline passed — ArgoCD will sync the cluster"
@@ -123,4 +123,5 @@ pipeline {
             echo "❌ Pipeline failed — check logs above"
         }
     }
-}
+
+}  // ← closes pipeline {}
