@@ -100,14 +100,22 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     bat '''
-                        powershell -Command "(Get-Content manifests/deployments/auth-deployment.yaml) -replace 'image:.*helpdesk-auth:.*','image: %DOCKER_USER%/helpdesk-auth:%IMAGE_TAG%' | Set-Content manifests/deployments/auth-deployment.yaml"
+                        git checkout main
+
+                        powershell -Command "(Get-Content manifests/deployments/auth-deployment.yaml) -replace 'image:.*auth-service:.*','image: %DOCKER_USER%/helpdesk-auth:%IMAGE_TAG%' | Set-Content manifests/deployments/auth-deployment.yaml"
+
+                        powershell -Command "(Get-Content manifests/deployments/ticket-deployment.yaml) -replace 'image:.*ticket-service:.*','image: %DOCKER_USER%/helpdesk-ticket:%IMAGE_TAG%' | Set-Content manifests/deployments/ticket-deployment.yaml"
+
+                        powershell -Command "(Get-Content manifests/deployments/comment-deployment.yaml) -replace 'image:.*comment-service:.*','image: %DOCKER_USER%/helpdesk-comment:%IMAGE_TAG%' | Set-Content manifests/deployments/comment-deployment.yaml"
+
+                        powershell -Command "(Get-Content manifests/deployments/frontend-deployment.yaml) -replace 'image:.*frontend:.*','image: %DOCKER_USER%/helpdesk-frontend:%IMAGE_TAG%' | Set-Content manifests/deployments/frontend-deployment.yaml"
 
                         git config user.email "jenkins@helpdesk.com"
                         git config user.name "Jenkins CI"
 
                         git add manifests/
-                        git commit -m "ci: update image tag %IMAGE_TAG%" || exit 0
-                        git push origin main || exit 0
+                        git diff --cached --quiet && echo "No changes to commit" || git commit -m "ci: update image tag %IMAGE_TAG%"
+                        git push https://%DOCKER_USER%:%DOCKER_PASS%@github.com/SaranyaDevi2005/HELPDESK-APP.git main
                     '''
                 }
             }
