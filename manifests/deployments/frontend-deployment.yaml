@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: saranya1976/helpdesk-frontend:16
+        image: saranya1976/helpdesk-frontend:17
         ports:
         - containerPort: 3000
         env:
