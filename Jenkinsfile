@@ -57,12 +57,17 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                bat '''
-                    sonar-scanner -Dsonar.projectKey=helpdesk -Dsonar.sources=backend,frontend
-                '''
+                withSonarQubeEnv('SonarQube') {
+                    bat """
+                        Sonar-Scanner\\bin\\sonar-scanner.bat ^
+                        -Dsonar.projectKey=helpdesk ^
+                        -Dsonar.sources=backend,frontend ^
+                        -Dsonar.host.url=http://localhost:9000 ^
+                        -Dsonar.login=%SONAR_AUTH_TOKEN%
+                    """
+                }
             }
         }
-
         stage('Push to DockerHub') {
             when { branch 'main' }
             steps {
