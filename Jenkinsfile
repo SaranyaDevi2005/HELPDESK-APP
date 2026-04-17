@@ -95,9 +95,9 @@ pipeline {
         stage('Update Manifests') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'github-pat',          // ← changed
-                    usernameVariable: 'GIT_USER',         // ← changed
-                    passwordVariable: 'GIT_TOKEN'         // ← changed
+                    credentialsId: 'github-pat',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_TOKEN'
                 )]) {
                     bat '''
                         git checkout main
@@ -115,6 +115,8 @@ pipeline {
 
                         git add manifests/
                         git diff --cached --quiet && echo "No changes to commit" || git commit -m "ci: update image tag %IMAGE_TAG%"
+
+                        git pull https://%GIT_USER%:%GIT_TOKEN%@github.com/SaranyaDevi2005/HELPDESK-APP.git main --rebase
                         git push https://%GIT_USER%:%GIT_TOKEN%@github.com/SaranyaDevi2005/HELPDESK-APP.git main
                     '''
                 }
