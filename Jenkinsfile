@@ -4,6 +4,11 @@ pipeline {
     environment {
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
+    stage('Check Trivy') {
+        steps {
+            bat 'trivy -v'
+        }
+    }
 
     stages {
 
