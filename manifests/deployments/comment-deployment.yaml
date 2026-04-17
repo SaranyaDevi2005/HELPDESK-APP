@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: comment
-        image: comment-service:latest
+        image: saranya1976/helpdesk-comment:16
         ports:
         - containerPort: 8003
         env:

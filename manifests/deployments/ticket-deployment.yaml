@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: ticket
-        image: ticket-service:latest
+        image: saranya1976/helpdesk-ticket:16
         ports:
         - containerPort: 8002
         env:
