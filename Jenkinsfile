@@ -15,10 +15,10 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                sh '''
+                bat '''
                     pip install -r backend/services/auth_service/requirements.txt pytest httpx
                     cd backend/services/auth_service
-                    python -m pytest tests/ -v --tb=short || true
+                    python -m pytest tests/ -v --tb=short || exit 0
                 '''
             }
         }
