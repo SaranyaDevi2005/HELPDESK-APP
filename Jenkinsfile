@@ -2,15 +2,15 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_USER = credentials('docker-username')
-        DOCKER_PASS = credentials('docker-password')
-        IMAGE_TAG   = "${env.BUILD_NUMBER}"
+        IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
 
         stage('Checkout') {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
         }
 
         stage('Unit Tests') {
@@ -37,8 +37,8 @@ pipeline {
         stage('Trivy Security Scan') {
             steps {
                 sh '''
-                    # Install trivy if not present
                     which trivy || (curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin)
+
                     trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-auth:${IMAGE_TAG}
                     trivy image --severity HIGH,CRITICAL --exit-code 0 helpdesk-frontend:${IMAGE_TAG}
                 '''
@@ -48,7 +48,11 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh 'sonar-scanner -Dsonar.projectKey=helpdesk -Dsonar.sources=backend,frontend'
+                    sh '''
+                        sonar-scanner \
+                        -Dsonar.projectKey=helpdesk \
+                        -Dsonar.sources=backend,frontend
+                    '''
                 }
             }
         }
@@ -56,15 +60,24 @@ pipeline {
         stage('Push to DockerHub') {
             when { branch 'main' }
             steps {
-                sh '''
-                    echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-                    for svc in auth ticket comment; do
-                        docker tag helpdesk-${svc}:${IMAGE_TAG} ${DOCKER_USER}/helpdesk-${svc}:latest
-                        docker push ${DOCKER_USER}/helpdesk-${svc}:latest
-                    done
-                    docker tag helpdesk-frontend:${IMAGE_TAG} ${DOCKER_USER}/helpdesk-frontend:latest
-                    docker push ${DOCKER_USER}/helpdesk-frontend:latest
-                '''
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-password',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                        for svc in auth ticket comment; do
+                            docker tag helpdesk-${svc}:${IMAGE_TAG} ${DOCKER_USER}/helpdesk-${svc}:latest
+                            docker push ${DOCKER_USER}/helpdesk-${svc}:latest
+                        done
+
+                        docker tag helpdesk-frontend:${IMAGE_TAG} ${DOCKER_USER}/helpdesk-frontend:latest
+                        docker push ${DOCKER_USER}/helpdesk-frontend:latest
+                    '''
+                }
             }
         }
 
@@ -72,10 +85,11 @@ pipeline {
             when { branch 'main' }
             steps {
                 sh '''
-                    sed -i "s|image:.*helpdesk-auth:.*|image: ${DOCKER_USER}/helpdesk-auth:${IMAGE_TAG}|" \
-                        manifests/deployments/auth-deployment.yaml
+                    sed -i "s|image:.*helpdesk-auth:.*|image: ${DOCKER_USER}/helpdesk-auth:${IMAGE_TAG}|" manifests/deployments/auth-deployment.yaml
+
                     git config user.email "jenkins@helpdesk.com"
                     git config user.name "Jenkins CI"
+
                     git add manifests/
                     git diff --staged --quiet || git commit -m "ci: image tag ${IMAGE_TAG}"
                     git push origin main || true
@@ -85,7 +99,11 @@ pipeline {
     }
 
     post {
-        success { echo "✅ Pipeline passed — ArgoCD will sync the cluster" }
-        failure { echo "❌ Pipeline failed — check logs above" }
+        success {
+            echo "✅ Pipeline passed — ArgoCD will sync the cluster"
+        }
+        failure {
+            echo "❌ Pipeline failed — check logs above"
+        }
     }
 }
