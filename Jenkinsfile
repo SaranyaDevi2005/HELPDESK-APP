@@ -95,27 +95,27 @@ pipeline {
         stage('Update Manifests') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'docker-password',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
+                    credentialsId: 'github-pat',          // ← changed
+                    usernameVariable: 'GIT_USER',         // ← changed
+                    passwordVariable: 'GIT_TOKEN'         // ← changed
                 )]) {
                     bat '''
                         git checkout main
 
-                        powershell -Command "(Get-Content manifests/deployments/auth-deployment.yaml) -replace 'image:.*auth-service:.*','image: %DOCKER_USER%/helpdesk-auth:%IMAGE_TAG%' | Set-Content manifests/deployments/auth-deployment.yaml"
+                        powershell -Command "(Get-Content manifests/deployments/auth-deployment.yaml) -replace 'image:.*auth-service:.*','image: saranya1976/helpdesk-auth:%IMAGE_TAG%' | Set-Content manifests/deployments/auth-deployment.yaml"
 
-                        powershell -Command "(Get-Content manifests/deployments/ticket-deployment.yaml) -replace 'image:.*ticket-service:.*','image: %DOCKER_USER%/helpdesk-ticket:%IMAGE_TAG%' | Set-Content manifests/deployments/ticket-deployment.yaml"
+                        powershell -Command "(Get-Content manifests/deployments/ticket-deployment.yaml) -replace 'image:.*ticket-service:.*','image: saranya1976/helpdesk-ticket:%IMAGE_TAG%' | Set-Content manifests/deployments/ticket-deployment.yaml"
 
-                        powershell -Command "(Get-Content manifests/deployments/comment-deployment.yaml) -replace 'image:.*comment-service:.*','image: %DOCKER_USER%/helpdesk-comment:%IMAGE_TAG%' | Set-Content manifests/deployments/comment-deployment.yaml"
+                        powershell -Command "(Get-Content manifests/deployments/comment-deployment.yaml) -replace 'image:.*comment-service:.*','image: saranya1976/helpdesk-comment:%IMAGE_TAG%' | Set-Content manifests/deployments/comment-deployment.yaml"
 
-                        powershell -Command "(Get-Content manifests/deployments/frontend-deployment.yaml) -replace 'image:.*frontend:.*','image: %DOCKER_USER%/helpdesk-frontend:%IMAGE_TAG%' | Set-Content manifests/deployments/frontend-deployment.yaml"
+                        powershell -Command "(Get-Content manifests/deployments/frontend-deployment.yaml) -replace 'image:.*frontend:.*','image: saranya1976/helpdesk-frontend:%IMAGE_TAG%' | Set-Content manifests/deployments/frontend-deployment.yaml"
 
                         git config user.email "jenkins@helpdesk.com"
                         git config user.name "Jenkins CI"
 
                         git add manifests/
                         git diff --cached --quiet && echo "No changes to commit" || git commit -m "ci: update image tag %IMAGE_TAG%"
-                        git push https://%DOCKER_USER%:%DOCKER_PASS%@github.com/SaranyaDevi2005/HELPDESK-APP.git main
+                        git push https://%GIT_USER%:%GIT_TOKEN%@github.com/SaranyaDevi2005/HELPDESK-APP.git main
                     '''
                 }
             }
